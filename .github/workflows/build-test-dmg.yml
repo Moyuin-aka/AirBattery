@@ -1,0 +1,47 @@
+name: Build test DMG
+
+on:
+  push:
+    branches:
+      - build/ios-ble-local-test
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build release app
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project AirBattery.xcodeproj \
+            -scheme AirBattery \
+            -configuration Release \
+            -derivedDataPath "$RUNNER_TEMP/AirBatteryDerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build | tee "$RUNNER_TEMP/xcodebuild.log"
+
+      - name: Package test DMG
+        run: |
+          mkdir -p "$RUNNER_TEMP/AirBatteryDMG"
+          ditto "$RUNNER_TEMP/AirBatteryDerivedData/Build/Products/Release/AirBattery.app" "$RUNNER_TEMP/AirBatteryDMG/AirBattery.app"
+          ln -s /Applications "$RUNNER_TEMP/AirBatteryDMG/Applications"
+          hdiutil create \
+            -volname "AirBattery Test" \
+            -srcfolder "$RUNNER_TEMP/AirBatteryDMG" \
+            -ov \
+            -format UDZO \
+            "$RUNNER_TEMP/AirBattery-test.dmg"
+
+      - name: Upload test build
+        uses: actions/upload-artifact@v4
+        with:
+          name: AirBattery-test-dmg
+          path: ${{ runner.temp }}/AirBattery-test.dmg
+          if-no-files-found: error
+          retention-days: 1
