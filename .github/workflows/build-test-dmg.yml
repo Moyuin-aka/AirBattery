@@ -30,6 +30,17 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/AirBatteryDMG"
           ditto "$RUNNER_TEMP/AirBatteryDerivedData/Build/Products/Release/AirBattery.app" "$RUNNER_TEMP/AirBatteryDMG/AirBattery.app"
+          app="$RUNNER_TEMP/AirBatteryDMG/AirBattery.app"
+          xattr -cr "$app"
+          sparkle="$app/Contents/Frameworks/Sparkle.framework/Versions/B"
+          for target in "$sparkle/XPCServices/Downloader.xpc" "$sparkle/XPCServices/Installer.xpc" "$sparkle/Updater.app" "$app/Contents/Frameworks/Sparkle.framework"; do
+            codesign --force --sign - "$target"
+          done
+          codesign --force --sign - --entitlements widget/widget.entitlements "$app/Contents/PlugIns/AirBatteryWidgetExtension.appex"
+          codesign --force --sign - --entitlements AirBatteryHelper/AirBatteryHelper.entitlements "$app/Contents/Library/LoginItems/AirBatteryHelper.app"
+          codesign --force --sign - --entitlements AirBattery/AirBattery.entitlements "$app"
+          codesign --verify --deep --strict "$app"
+          codesign -d --entitlements :- "$app/Contents/PlugIns/AirBatteryWidgetExtension.appex"
           ln -s /Applications "$RUNNER_TEMP/AirBatteryDMG/Applications"
           hdiutil create \
             -volname "AirBattery Test" \
